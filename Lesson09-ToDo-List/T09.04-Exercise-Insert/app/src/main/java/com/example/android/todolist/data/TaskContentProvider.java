@@ -17,10 +17,13 @@
 package com.example.android.todolist.data;
 
 import android.content.ContentProvider;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.UriMatcher;
 import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 
@@ -37,9 +40,12 @@ public class TaskContentProvider extends ContentProvider {
     private static final UriMatcher sUriMatcher = buildUriMatcher();
 
     // Define a static buildUriMatcher method that associates URI's with their int match
+    // Member variable for a TaskDbHelper that's initialized in the onCreate() method
+    private TaskDbHelper mTaskDbHelper;
+
     /**
-     Initialize a new matcher object without any matches,
-     then use .addURI(String authority, String path, int match) to add matches
+     * Initialize a new matcher object without any matches,
+     * then use .addURI(String authority, String path, int match) to add matches
      */
     public static UriMatcher buildUriMatcher() {
 
@@ -56,9 +62,6 @@ public class TaskContentProvider extends ContentProvider {
 
         return uriMatcher;
     }
-
-    // Member variable for a TaskDbHelper that's initialized in the onCreate() method
-    private TaskDbHelper mTaskDbHelper;
 
     /* onCreate() is where you should initialize anything you’ll need to setup
     your underlying data source.
@@ -78,16 +81,29 @@ public class TaskContentProvider extends ContentProvider {
 
     @Override
     public Uri insert(@NonNull Uri uri, ContentValues values) {
-        // TODO (1) Get access to the task database (to write new data to)
 
-        // TODO (2) Write URI matching code to identify the match for the tasks directory
+        SQLiteDatabase db = mTaskDbHelper.getWritableDatabase();
 
-        // TODO (3) Insert new values into the database
-        // TODO (4) Set the value for the returnedUri and write the default case for unknown URI's
+        int match = sUriMatcher.match(uri);
+        Uri newUri;
 
-        // TODO (5) Notify the resolver if the uri has been changed, and return the newly inserted URI
+        switch (match) {
+            case TASKS:
+                long id = db.insert(TaskContract.TaskEntry.TABLE_NAME, null, values);
+                if (id > 0) {
+                    newUri = ContentUris.withAppendedId(TaskContract.TaskEntry.CONTENT_URI, id);
+                } else {
+                    throw new SQLException("Failed to insert row into" + uri);
+                }
+                break;
+            default:
+                throw new UnsupportedOperationException("Unknown Uri " + uri);
+        }
 
-        throw new UnsupportedOperationException("Not yet implemented");
+        getContext().getContentResolver().notifyChange(uri, null);
+
+        return newUri;
+
     }
 
 
